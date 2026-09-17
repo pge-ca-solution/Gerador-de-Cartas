@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerador de Notificação - PGE-SP</title>
+    <style>
+        /* --- ESTILOS DE TELA (O que aparece no navegador) --- */
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f6f9;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            gap: 20px;
+        }
+
+        .form-container {
+            width: 350px;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 20px;
+            height: fit-content;
+        }
+
+        .form-container h2 {
+            font-size: 18px;
+            margin-top: 0;
+            color: #1a365d;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            font-weight: bold;
+            color: #4a5568;
+            margin-bottom: 5px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #cbd5e0;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 14px;
+        }
+
+        .btn-print {
+            width: 100%;
+            padding: 12px;
+            background-color: #2b6cb0;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn-print:hover {
+            background-color: #2c5282;
+        }
+
+        /* --- ESTILO DA CARTA (Visualização e Impressão) --- */
+        .document-page {
+            width: 210mm; /* Largura A4 */
+            height: 297mm; /* Altura A4 fixa para evitar segunda folha */
+            background: white;
+            padding: 15mm 25mm 10mm 25mm;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+            box-sizing: border-box;
+            position: relative;
+            color: #000;
+            line-height: 1.35;
+            font-size: 13.5px;
+        }
+
+        /* Marca d'água no fundo da carta */
+        .document-page::before {
+            content: "";
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: url('https://upload.wikimedia.org/wikipedia/commons/1/1a/Bras%C3%A3o_do_estado_de_S%C3%A3o_Paulo.svg') no-repeat center;
+            background-size: 65%;
+            opacity: 0.07;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .doc-content {
+            position: relative;
+            z-index: 1;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .doc-header {
+            text-align: center;
+            font-weight: bold;
+            margin-bottom: 15px;
+            font-size: 15px;
+        }
+
+        .doc-header .subtitle {
+            font-size: 14px;
+            margin-top: 4px;
+        }
+
+        .doc-location-date {
+            text-align: right;
+            margin-bottom: 15px;
+            font-size: 13px;
+        }
+
+        .doc-data-box {
+            margin: 15px 0;
+        }
+
+        .doc-data-box ul, .doc-sections ul {
+            list-style-type: disc;
+            padding-left: 20px;
+            margin: 5px 0;
+        }
+
+        .doc-data-box li, .doc-sections li {
+            margin-bottom: 4px;
+        }
+
+        .section-title {
+            text-align: center;
+            font-weight: bold;
+            margin-top: 16px;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            font-size: 12.5px;
+        }
+
+        .highlight-text {
+            text-align: center;
+            font-weight: bold;
+            margin: 15px 0 10px 0;
+            font-size: 12.5px;
+        }
+
+        .contact-info {
+            text-align: center;
+            font-weight: bold;
+            margin: 10px 0;
+            line-height: 1.4;
+        }
+
+        .notice-info {
+            text-align: center;
+            font-size: 12px;
+            font-weight: bold;
+            color: #1a365d;
+            margin: 10px 0;
+            padding: 6px;
+            background-color: #edf2f7;
+            border-radius: 4px;
+        }
+
+        /* Bloco de identificação do responsável (Sem linha) */
+        .signature-block {
+            text-align: center;
+            margin: 15px auto 10px auto;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+
+        .signature-name {
+            font-weight: bold;
+        }
+
+        .signature-role {
+            color: #333;
+        }
+
+        .address-block {
+            margin-top: 20px;
+            font-size: 12.5px;
+            line-height: 1.4;
+        }
+
+        /* Rodapé no final da página */
+        .doc-footer {
+            margin-top: auto; 
+            padding-bottom: 10px;
+            text-align: center;
+            font-size: 11px;
+            font-weight: bold;
+        }
+
+        .doc-footer img {
+            height: 45px;
+            vertical-align: middle;
+            margin-bottom: 3px;
+        }
+
+        /* --- REGRAS EXCLUSIVAS DE IMPRESSÃO --- */
+        @media print {
+            @page {
+                size: A4;
+                margin: 0;
+            }
+
+            body {
+                background: none;
+                padding: 0;
+                margin: 0;
+            }
+
+            .form-container {
+                display: none;
+            }
+
+            .document-page {
+                box-shadow: none;
+                padding: 20mm 25mm 15mm 25mm;
+                width: 210mm;
+                height: 297mm;
+                page-break-after: avoid;
+                page-break-inside: avoid;
+                color-adjust: exact;
+                -webkit-print-color-adjust: exact; 
+            }
+
+            .notice-info {
+                background-color: #f0f0f0 !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="form-container">
+        <h2>Dados da Notificação</h2>
+        
+        <div class="form-group">
+            <label for="input-processo">PROCESSO ADMINISTRATIVO Nº</label>
+            <input type="text" id="input-processo" placeholder="Ex: 1234567-2026/PGE">
+        </div>
+        
+        <div class="form-group">
+            <label for="input-interessada">PARTE INTERESSADA</label>
+            <input type="text" id="input-interessada" placeholder="Nome do devedor">
+        </div>
+        
+        <div class="form-group">
+            <label for="input-valor">VALOR ORIGINAL DO DÉBITO</label>
+            <input type="text" id="input-valor" placeholder="R$ 0,00">
+        </div>
+
+        <div class="form-group">
+            <label for="input-responsavel">NOME DO RESPONSÁVEL</label>
+            <input type="text" id="input-responsavel" placeholder="Nome de quem emite">
+        </div>
+
+        <div class="form-group">
+            <label for="input-cargo">CARGO DO RESPONSÁVEL</label>
+            <input type="text" id="input-cargo" placeholder="Ex: Diretor de Serviço / Oficial Administrativo">
+        </div>
+
+        <div class="form-group">
+            <label for="input-cuidados">AOS CUIDADOS DE</label>
+            <input type="text" id="input-cuidados" placeholder="Nome do destinatário">
+        </div>
+
+        <div class="form-group">
+            <label for="input-endereco">ENDEREÇO</label>
+            <input type="text" id="input-endereco" placeholder="Rua, Número, Bairro">
+        </div>
+
+        <div class="form-group">
+            <label for="input-cep">CEP</label>
+            <input type="text" id="input-cep" placeholder="00000-000">
+        </div>
+
+        <button class="btn-print" onclick="window.print()">Imprimir Documento</button>
+    </div>
+
+    <div class="document-page">
+        <div class="doc-content">
+            
+            <div class="doc-header">
+                Convite para renegociar suas dívidas com o Estado de São Paulo<br>
+                <div class="subtitle">Procuradoria Geral do Estado de São Paulo</div>
+            </div>
+
+            <div class="doc-location-date" id="txt-data-local">
+                São Paulo, <span id="data-atual"></span>
+            </div>
+
+            <p>Olá.</p>
+            <p>O Governo de São Paulo, por meio da Procuradoria Geral do Estado (PGE-SP), comunica existência de débito conforme as informações abaixo, de acordo com o apurado em processo administrativo.</p>
+            <p>Solicitamos seu contato por meio dos canais abaixo para verificarmos a possibilidade de acordo para regularização.</p>
+
+            <div class="doc-data-box">
+                <ul>
+                    <li><strong>PROCESSO ADMINISTRATIVO nº</strong> <span id="txt-processo">___________</span></li>
+                    <li><strong>PARTE INTERESSADA:</strong> <span id="txt-interessada">___________</span></li>
+                    <li><strong>ASSUNTO:</strong> Ressarcimento ao Erário</li>
+                    <li><strong>VALOR ORIGINAL DO DÉBITO:</strong> <span id="txt-valor">___________</span></li>
+                </ul>
+            </div>
+
+            <div class="section-title">Quais são as vantagens do acordo?</div>
+            <div class="doc-sections">
+                <ul>
+                    <li><strong>Parcelamento:</strong> Possibilidade de parcelar sua dívida em até 60 vezes.</li>
+                    <li><strong>Descontos:</strong> Possível desconto de até 30% no valor principal.</li>
+                    <li><strong>Menos juros:</strong> os encargos da dívida serão reduzidos.</li>
+                    <li><strong>Fim do processo:</strong> a cobrança administrativa será encerrada.</li>
+                </ul>
+            </div>
+
+            <div class="section-title">Caso não regularize sua dívida</div>
+            <div class="doc-sections">
+                <ul>
+                    <li>Seu nome poderá ser incluído no CADIN (cadastro de devedores do governo).</li>
+                    <li>A dívida continuará a ter juros e correção monetária, aumentando o valor total.</li>
+                    <li>O Estado poderá iniciar um processo judicial de cobrança.</li>
+                </ul>
+            </div>
+
+            <div class="highlight-text">
+                Seu contato é muito importante para resolver essa pendência e evitar problemas futuros.
+            </div>
+
+            <div class="contact-info">
+                E-MAIL PARA CONTATO: pgepj6@sp.gov.br<br>
+                TELEFONE: (11) 92204-5038
+            </div>
+
+            <div class="notice-info">
+                * ATENDIMENTO PRESENCIAL REALIZADO SOMENTE MEDIANTE AGENDAMENTO PRÉVIO *
+            </div>
+
+            <div class="signature-block">
+                <div class="signature-name" id="txt-responsavel">Nome do Responsável</div>
+                <div class="signature-role" id="txt-cargo">Cargo do Responsável</div>
+            </div>
+
+            <div class="address-block">
+                <strong>Aos cuidados de:</strong> <span id="txt-cuidados">______________________</span><br>
+                <strong>Endereço:</strong> <span id="txt-endereco">______________________</span><br>
+                <strong>CEP:</strong> <span id="txt-cep">___________</span>
+            </div>
+
+            <div class="doc-footer">
+                REALIZAÇÃO<br><br>
+                <img src="https://upload.wikimedia.org/wikipedia/commons/1/1a/Bras%C3%A3o_do_estado_de_S%C3%A3o_Paulo.svg" alt="Logo PGE"><br>
+                PROCURADORIA GERAL<br>DO ESTADO DE SÃO PAULO
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // Preenche automaticamente a data atual por extenso
+        const dataElement = document.getElementById('data-atual');
+        const hoje = new Date();
+        const opcoesData = { day: 'numeric', month: 'long', year: 'numeric' };
+        dataElement.textContent = hoje.toLocaleDateString('pt-BR', opcoesData);
+
+        const inputs = [
+            { inputId: 'input-processo', textId: 'txt-processo', default: '___________' },
+            { inputId: 'input-interessada', textId: 'txt-interessada', default: '___________' },
+            { inputId: 'input-valor', textId: 'txt-valor', default: '___________' },
+            { inputId: 'input-responsavel', textId: 'txt-responsavel', default: 'Nome do Responsável' },
+            { inputId: 'input-cargo', textId: 'txt-cargo', default: 'Cargo do Responsável' },
+            { inputId: 'input-cuidados', textId: 'txt-cuidados', default: '______________________' },
+            { inputId: 'input-endereco', textId: 'txt-endereco', default: '______________________' },
+            { inputId: 'input-cep', textId: 'txt-cep', default: '___________' }
+        ];
+
+        inputs.forEach(item => {
+            const inputEl = document.getElementById(item.inputId);
+            const textEl = document.getElementById(item.textId);
+
+            inputEl.addEventListener('input', () => {
+                if (inputEl.value.trim() === "") {
+                    textEl.textContent = item.default;
+                } else {
+                    textEl.textContent = inputEl.value;
+                }
+            });
+        });
+    </script>
+</body>
+</html>
